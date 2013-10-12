@@ -42,9 +42,9 @@ app.get("/howhipsteris", function(req, res) {
 	//callback: array elements: {band: "Madeon", like_date: 1235125213, wiki_date: 12784122}
 
 	//step four:
-	//calculate a hipster score for a user
+	//calculate a hipster score for a user. if wiki_date is null, ignore entry completely.
 	//input: array elements: {band: "Madeon", like_date: 1235125213, wiki_date: 12784122}
-	//callback: a float between 0.0-100.0
+	//direct output: a float between 0.0-100.0
 
 
 	//step five: just call the pusher api.
@@ -55,3 +55,25 @@ var port = process.env.PORT || 5000;
  app.listen(port, function() {
    console.log("Listening on " + port);
  });
+
+
+//step 1
+function friends_for(fb_id,access_token,callback){
+
+}
+
+//step 2
+function find_band_likes(fb_id,callback){
+
+}
+
+//step 3
+function get_wiki_creation_date(arr_bands,callback){
+
+}
+
+//step 4
+function hipster_score(arr_bands){
+
+	return 0.0;
+}
