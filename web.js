@@ -221,24 +221,32 @@ function wikipedia_creation_date_by_name(name, callback){
 
 //step 4
 function hipster_score(user, original_user_id){
-   
-    //TODO: ignore when wiki_date == null
-    // ignore when user.band_likes == null
+    for(var i=0; i<user.band_likes.length; i++){
+    	var data = user.band_likes[i];
 
-    user.score = Math.floor(Math.random() * 99);//TODO: do fancy calculation instead of this line
+    	data.created_time = new Date(date.created_time*1000)
+    	if( data.wiki_date === null ){
+    		user.score += 5;
+    	}
+    	else {
+    		var like_year = data.getFullYear();
+    		var like_month = data.getMonth();
 
-    /*
-    if(fbLike.getYear()<= wiki.getYear()){
-        if(fbLike.getMonth() <= wiki.getMonth()){
-            if(fbLike.getDay() <= wiki.getDay()){
-                //increase score
+    		var wiki_year = data.wiki_date.getFullYear();
+    		var wiki_month = data.wiki_date.getMonth();
 
-	            }
-	        }
-	    }
-	*/
-
-
+    		var year_diff = wiki_year - like_year;
+    		var month_diff = wiki_month - like_month;
+    		if(year_diff >= 0){
+    			if(month_diff > 0){
+    				user.score += year_diff * 12 + month_diff;
+    			}
+    			else{
+    				user.score += (year_diff-1) * 12 + 12 - month_diff;
+    			}
+    		}
+    	}
+    }
 
     client.query('SELECT id, score FROM users WHERE id = $1', [user.id], function(err, result) {
     	if(result.rows[0]){
