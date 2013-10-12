@@ -91,9 +91,36 @@ function getWikiDate(array_bands, callback){
         }
     })
 }
+hipster_score({'band':'cuba','like_date':'2002',wiki_date:'2003'});
 
 //step 4
+//step 4
 function hipster_score(arr_bands){
+    var likeYear='',wikiYear='';
+    for(var i=0;i<=3;i++){
+        likeYear+=arr_bands.like_date[i];
+        wikiYear+=arr_bands.wiki_date[i];
+    }
+    var likeMonth='',wikiMonth='';
+    for(var i=5;i<=6;i++){
+        likeMonth+=arr_bands.like_date[i];
+        wikiMonth+=arr_bands.wiki_date[i];
+    }
+    var likeDay='', wikiDay='';
+    for(vari=8;i<=9;i++){
+        likeDay+=arr_bands.like_date[i];
+        wikiDay+=arr_bands.wiki_date[i];
+    }
 
-	return 0.0;
+
+    if(parseInt(likeYear) <= parseInt(wikiYear)){
+        if(parseInt(likeMonth) <= parseInt(wikiMonth)){
+            if(parseInt(likeDay) <= parseInt(wikiDay)){
+                //increase score
+
+            }
+        }
+    }
+
+    return 0.0;
 }
