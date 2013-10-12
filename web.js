@@ -63,10 +63,10 @@ app.get("/howhipsteris", function(req, res) {
 		}
 		var total_users = users.length;
 		var outer_done = function(){
-			pusher_count(outer_counter,total_users);
+			pusher_count(fb_id,outer_counter,total_users);
 			outer_counter++;
 			if(outer_counter == total_users){
-				pusher_notify_ok();
+				pusher_notify_ok(fb_id);
 				console.log('completely done!');
 			}
 		}
@@ -222,15 +222,16 @@ function wikipedia_creation_date_by_name(name, callback){
 
 //step 4
 function hipster_score(user, original_user_id){
+	user.score = 0;
     for(var i=0; i<user.band_likes.length; i++){
     	var data = user.band_likes[i];
-    	data.created_time = new Date(date.created_time*1000)
-    	if( data.wiki_date === null ){
+    	data.created_time = new Date(data.created_time*1000)
+    	if(!data.wiki_date){
     		user.score += 5;
     	}
     	else {
-    		var like_year = data.getFullYear();
-    		var like_month = data.getMonth();
+    		var like_year = data.created_time.getFullYear();
+    		var like_month = data.created_time.getMonth();
 
     		var wiki_year = data.wiki_date.getFullYear();
     		var wiki_month = data.wiki_date.getMonth();
@@ -286,6 +287,6 @@ function pusher_error(original_user_id, error){
 function pusher_notify_ok(original_user_id){
 	console.log("PUSHER: DONE");
 	setTimeout(function(){
-		pusher.trigger(original_user_id, 'done', {});
+		pusher.trigger(original_user_id, 'done', {done:true});
 	},1000);
 }
