@@ -120,6 +120,9 @@ function find_band_likes(obj_user,access_token,callback){ //or just: /517185072/
 		}
 	});
 }
+getWikiDate({'band':'cuba', 'like_date': '1235125213'}, function(num){
+    console.log(num);
+});
 
 function find_wiki_date(like,callback){
 
@@ -127,50 +130,41 @@ function find_wiki_date(like,callback){
 
 //step 3
 function getWikiDate(array_bands, callback){
-    var request = require('request');
+//    var request = require('request');
     var date='';
-    request("http://en.wikipedia.org/w/api.php?action=query&prop=revisions&titles="+array_bands.band+"&rvprop=timestamp%7Cuser&rvdir=newer&rvlimit=1&format=json&callback=?", function (error, response, body) {
-        if (!error && response.statusCode == 200) {
-            var a =  body.indexOf("timestamp");
-            var date ='';
-            if(a){
-                for(var b=a+12; b<= a+31;b++)
-                    date+=body[b];
-                console.log(date);
+    request("http://en.wikipedia.org/w/api.php?action=query&prop=revisions&titles="+array_bands.band+"&rvprop=timestamp%7Cuser&rvdir=newer&rvlimit=1&format=json&callback=?",
+        function (error, response, body) {
+            if (!error && response.statusCode == 200) {
+                var a =  body.indexOf("timestamp");
+                var date ='';
+                if(a){
+                    for(var b=a+12; b<= a+31;b++)
+                        date+=body[b];
+                    //console.log(date);
+                }
+                date = new Date(date);
+                console.log("Date:", date);
+                bandArray={
+                    'band': array_bands.band,
+                    like_date: array_bands.like_date,
+                    wiki_date: date
+                }
+                callback(bandArray);
             }
-            bandArray={
-                'band': array_bands.band,
-                like_date: array_bands.like_date,
-                wiki_date: date
-            }
-            callback(bandArray);
-        }
-    })
+    });
 }
-//hipster_score({'band':'cuba','like_date':'2002',wiki_date:'2003'});
+hipster_score({'band':'cuba','like_date': new Date(),'wiki_date': new Date()});
 
 //step 4
 function hipster_score(arr_bands){
-	var likeYear='',wikiYear='';
-    for(var i=0;i<=3;i++){
-        likeYear+=arr_bands.like_date[i];
-        wikiYear+=arr_bands.wiki_date[i];
-    }
-    var likeMonth='',wikiMonth='';
-    for(var i=5;i<=6;i++){
-        likeMonth+=arr_bands.like_date[i];
-        wikiMonth+=arr_bands.wiki_date[i];
-    }
-    var likeDay='', wikiDay='';
-    for(vari=8;i<=9;i++){
-        likeDay+=arr_bands.like_date[i];
-        wikiDay+=arr_bands.wiki_date[i];
-    }
+    var fbLike = arr_bands.like_date;
+    var wiki   = arr_bands.wiki_date;
 
 
-    if(parseInt(likeYear) <= parseInt(wikiYear)){
-        if(parseInt(likeMonth) <= parseInt(wikiMonth)){
-            if(parseInt(likeDay) <= parseInt(wikiDay)){
+
+    if(fbLike.getYear()<= wiki.getYear()){
+        if(fbLike.getMonth() <= wiki.getMonth()){
+            if(fbLike.getDay() <= wiki.getDay()){
                 //increase score
 
             }
