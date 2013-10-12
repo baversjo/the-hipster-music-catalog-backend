@@ -57,24 +57,24 @@ app.get("/howhipsteris", function(req, res) {
 	friends_for(fb_id,access_token,function(users){
 		console.log('a');
 		var outer_counter = 0;
-		var total_users = users.length;
-		var outer_done = function(){
-			console.log('counts:',outer_counter,total_users-1);
-			outer_counter++;
-			if(outer_counter == total_users-1){
-				pusher_notify_ok();
-				console.log('completely done!');
-			}
-		}
 		if(!users){
 			pusher_error(fb_id,"could not fetch friends (invalid access token?)");
 			return;
 		}
+		var total_users = users.length;
+		var outer_done = function(){
+			pusher_count(outer_counter,total_users);
+			outer_counter++;
+			if(outer_counter == total_users){
+				pusher_notify_ok();
+				console.log('completely done!');
+			}
+		}
+
 		console.log("users length:", users.length);
 		for(var i=0; i < users.length; i++){
 			console.log('b');
 			find_band_likes(users[i],access_token,fb_id,function(user, band_likes){
-				console.log('c', band_likes);
 				var counter = 0;
 				var cont_user = function(fail){
 					if(fail){
@@ -91,8 +91,7 @@ app.get("/howhipsteris", function(req, res) {
 					}
 				}
 				user.band_likes = band_likes;
-				if(band_likes == null){
-					total_users -= 1;
+				if(band_likes == null || band_likes.length == 0){
 					outer_done();
 					return;
 				}
@@ -102,7 +101,6 @@ app.get("/howhipsteris", function(req, res) {
 
 
 					if(cached_band){
-						console.log('==========> cache hit!');
 						like.wiki_date = cached_band.wiki_date;
 						cont_user();
 					}else{
@@ -133,7 +131,7 @@ app.get("/howhipsteris", function(req, res) {
 //step 1
 function friends_for(fb_id,access_token,callback){
 	var req_str = 'https://graph.facebook.com/'+
-		fb_id+'/friends?limit=5&offset=0&access_token='+
+		fb_id+'/friends?limit=500&offset=0&access_token='+
 		access_token;
 
 	request(req_str, function (error, response) {
@@ -196,8 +194,6 @@ function find_wiki_date(like,access_token,original_user_id,callback){
 //step 3
 function wikipedia_creation_date_by_name(name, callback){
 //    var request = require('request');
-	console.log("");
-	console.log("");
     var reqStr = "http://en.wikipedia.org/w/api.php?action=query&prop=revisions&titles="+
     	encodeURIComponent(name)+
     	"&rvprop=timestamp%7Cuser&rvdir=newer&rvlimit=1&format=json";
@@ -226,6 +222,9 @@ function wikipedia_creation_date_by_name(name, callback){
 
 //step 4
 function hipster_score(user, original_user_id){
+
+	//user.band_likes:
+	//{"wiki_date": Date or Null, li}
    
     //TODO: ignore when wiki_date == null
     // ignore when user.band_likes == null
@@ -266,6 +265,13 @@ function hipster_score(user, original_user_id){
 
 }
 
+
+function pusher_count(original_user_id, current, total){
+ //todo: call pusher!
+ 	if(current % 20 == 0){
+ 		pusher.trigger(original_user_id, 'progress', {current:current,total:total});
+ 	}
+}
 
 function pusher_error(original_user_id, error){
  //todo: call pusher!
