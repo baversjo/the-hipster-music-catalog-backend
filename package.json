@@ -1,0 +1,10 @@
+{
+  "name": "the-hipster-music-catalog-backend",
+  "description": "Node.js backend to the-hipster-music-catalog",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "express": "3.x"
+  }
+}
+
