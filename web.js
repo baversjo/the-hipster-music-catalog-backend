@@ -41,25 +41,7 @@ app.get("/howhipsteris", function(req, res) {
 	//input: array elements: {band: "Madeon", like_date: 1235125213}
 	//callback: array elements: {band: "Madeon", like_date: 1235125213, wiki_date: 12784122}
 
-    function getWikiDate(array, callback){
-        var request = require('request');
-        var date='';
-        request("http://en.wikipedia.org/w/api.php?action=query&prop=revisions&titles="+array.band+"&rvprop=timestamp%7Cuser&rvdir=newer&rvlimit=1&format=json&callback=?", function (error, response, body) {
-            if (!error && response.statusCode == 200) {
-                var a =  body.indexOf("timestamp");
-                var date ='';
-                for(var b=a+12; b<= a+31;b++)
-                    date+=body[b];
-                console.log(date);
-                bandArray={
-                    'band': array.band,
-                    like_date: array.like_date,
-                    wiki_date: date
-                }
-                callback(bandArray);
-            }
-        })
-    }
+
 
 	//step four:
 	//calculate a hipster score for a user. if wiki_date is null, ignore entry completely.
@@ -88,8 +70,24 @@ function find_band_likes(fb_id,callback){
 }
 
 //step 3
-function get_wiki_creation_date(arr_bands,callback){
-
+function getWikiDate(array_bands, callback){
+    var request = require('request');
+    var date='';
+    request("http://en.wikipedia.org/w/api.php?action=query&prop=revisions&titles="+array_bands.band+"&rvprop=timestamp%7Cuser&rvdir=newer&rvlimit=1&format=json&callback=?", function (error, response, body) {
+        if (!error && response.statusCode == 200) {
+            var a =  body.indexOf("timestamp");
+            var date ='';
+            for(var b=a+12; b<= a+31;b++)
+                date+=body[b];
+            console.log(date);
+            bandArray={
+                'band': array_bands.band,
+                like_date: array_bands.like_date,
+                wiki_date: date
+            }
+            callback(bandArray);
+        }
+    })
 }
 
 //step 4
