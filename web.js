@@ -3,6 +3,12 @@ var app = express();
 var request = require('request');
 var _ = require('underscore');
 
+var pg = require('pg');
+
+var conString = process.env.DATABASE_URL || "postgres://localhost/thmc_development";
+
+var client;
+
 app.use(express.bodyParser());
 
 /* serves main page */
@@ -42,17 +48,38 @@ app.get("/howhipsteris", function(req, res) {
 	//find_band_likes(fb_id,callback)
 
 	friends_for(fb_id,access_token,function(users){
+		var outer_counter = 0;
+		var outer_done = function(){
+			if(outer_counter == users.length.length-1){
+				pusher_notify_ok();
+			}else{
+				outer_counter++;
+				console.log('another friend done!');
+			}
+		}
 		for(var i=0; i < users.length; i++){
 			find_band_likes(users[i],access_token,function(user, band_likes){
+				var counter = 0;
+				var cont_user = function(){
+					if(counter == band_likes.length-1){
+						outer_done();
+						//calculate and save users score.
+						hipster_score(user,fb_id);
+					}else{
+						counter++;
+					}
+				}
+				user.band_likes = band_likes;
 				for(var i=0; i<band_likes.length; i++){
 					var like = band_likes[i];
 					var cached_band = fb_band_repo[like.page_id];
+
+
 					if(cached_band){
 						like.wiki_date = cached_band.wiki_date;
+						cont_user();
 					}else{
-						find_wiki_date(like,function(){
-							//now we have like.wiki_date!
-						});
+						find_wiki_date(like,access_token,cont_user);
 					}
 				}
 			});
@@ -78,9 +105,19 @@ app.get("/howhipsteris", function(req, res) {
 	
 });
 
-var port = process.env.PORT || 5000;
- app.listen(port, function() {
-   console.log("Listening on " + port);
+
+
+ pg.connect(conString, function(err, cli, done) {
+ 	client = cli;
+ 	if(err){
+ 		console.log(err);
+ 	}else{
+ 		console.log('connected to postgres!');
+ 		var port = process.env.PORT || 5000;
+		app.listen(port, function() {
+		  console.log("Listening on " + port);
+		});
+ 	}
  });
 
 
@@ -93,7 +130,7 @@ function friends_for(fb_id,access_token,callback){
 	request(req_str, function (error, response) {
 		var body = JSON.parse(response.body);
 		if(error){
-			error();
+			pusher_error(error);
 		}else{
 			var users = body.data;
 			return callback(users);
@@ -111,28 +148,45 @@ function find_band_likes(obj_user,access_token,callback){ //or just: /517185072/
 	access_token;
 
 	request(req_str, function (error, response) {
-		var body = JSON.parse(response.body);
+		var body = JSON.parse(response.body).data;
 
-		if(error){
-			error();
+		if(error || body){
+			pusher_error(error || body);
 		}else{
-			callback(obj_user,body.data);
+			callback(obj_user,body);
 		}
 	});
 }
-getWikiDate({'band':'cuba', 'like_date': '1235125213'}, function(num){
-    console.log(num);
-});
 
-function find_wiki_date(like,callback){
+function find_wiki_date(like,access_token, callback){
+	var query = "select name FROM page WHERE page_id = " + like.page_id;
 
+	var req_str = 'https://graph.facebook.com/fql?q='+
+	encodeURIComponent(query)+'&access_token='+
+	access_token;
+
+	request(req_str, function (error, response) {
+		var body = JSON.parse(response.body);
+		if(error){
+			pusher_error(error);
+		}else{
+			var name = body.data[0].name;
+			wikipedia_creation_date_by_name(name,function(date){
+				like.wiki_date = date;
+				callback();
+			});
+			
+		}
+	});
 }
 
 //step 3
-function getWikiDate(array_bands, callback){
+function wikipedia_creation_date_by_name(name, callback){
 //    var request = require('request');
     var date='';
-    request("http://en.wikipedia.org/w/api.php?action=query&prop=revisions&titles="+array_bands.band+"&rvprop=timestamp%7Cuser&rvdir=newer&rvlimit=1&format=json&callback=?",
+    request("http://en.wikipedia.org/w/api.php?action=query&prop=revisions&titles="+
+    	encodeURIComponent(name)+
+    	"&rvprop=timestamp%7Cuser&rvdir=newer&rvlimit=1&format=json&callback=?",
         function (error, response, body) {
             if (!error && response.statusCode == 200) {
                 var a =  body.indexOf("timestamp");
@@ -140,45 +194,62 @@ function getWikiDate(array_bands, callback){
                 if(a){
                     for(var b=a+12; b<= a+31;b++)
                         date+=body[b];
-                    //console.log(date);
                 }
                 date = new Date(date);
-                console.log("Date:", date);
-                bandArray={
-                    'band': array_bands.band,
-                    like_date: array_bands.like_date,
-                    wiki_date: date
-                }
-                callback(bandArray);
+                callback(date);
             }
     });
 }
-hipster_score({'band':'cuba','like_date': new Date(),'wiki_date': new Date()});
+
+/*
+
+
+*/
+
 
 //step 4
-function hipster_score(arr_bands){
+function hipster_score(user, original_user_id){
     var fbLike = arr_bands.like_date;
     var wiki   = arr_bands.wiki_date;
 
+    user.score = Math.floor(Math.random() * 99);//TODO: do fancy calculation instead of this line
 
-
+    /*
     if(fbLike.getYear()<= wiki.getYear()){
         if(fbLike.getMonth() <= wiki.getMonth()){
             if(fbLike.getDay() <= wiki.getDay()){
                 //increase score
 
-            }
-        }
-    }
+	            }
+	        }
+	    }
+	*/
+
+    client.query('SELECT id, score FROM users WHERE id = $1', [user.id], function(err, result) {
+    	if(result.rows[0]){
+    		//UPDATE
+    		//create relationship
+    		client.query('UPDATE users SET score = $1 WHERE id = $2', [user.score, user.id]);
+    		client.query('INSERT INTO friendships (user_id,friend_id) VALUES ($1,$2)', [original_user_id,user.id]); //TODO: validate uniqueness
+    	}else{
+
+    		client.query('INSERT INTO users (id,name,score,created_at,updated_at) VALUES ($1,$2,$3,$4,$5)',
+    			[user.id, user.name, user.score, +new Date(), +new Date()]);
 
 
-	return 0.0;
+    		client.query('INSERT INTO friendships (user_id,friend_id) VALUES ($1,$2)', [original_user_id,user.id]);
+    	}
+    	
+    });
+
 }
 
 
-function error(){
+function pusher_error(error){
  //todo: call pusher!
+ 	console.log(error);
+ 	console.log("PUSHER: ERROR");
 }
 function pusher_notify_ok(){
-
+	console.log("PUSHER: DONE");
 }
