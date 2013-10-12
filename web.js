@@ -77,9 +77,11 @@ function getWikiDate(array_bands, callback){
         if (!error && response.statusCode == 200) {
             var a =  body.indexOf("timestamp");
             var date ='';
-            for(var b=a+12; b<= a+31;b++)
-                date+=body[b];
-            console.log(date);
+            if(a){
+                for(var b=a+12; b<= a+31;b++)
+                    date+=body[b];
+                console.log(date);
+            }
             bandArray={
                 'band': array_bands.band,
                 like_date: array_bands.like_date,
