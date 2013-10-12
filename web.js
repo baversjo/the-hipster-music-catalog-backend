@@ -10,6 +10,8 @@ app.get("/", function(req, res) {
 	res.sendfile('index.html');
 });
 
+var fb_band_repo = {};
+
 app.get("/howhipsteris", function(req, res) { 
 	var fb_id = req.query.fb_id,
 	access_token = req.query.access_token;
@@ -40,11 +42,21 @@ app.get("/howhipsteris", function(req, res) {
 	//find_band_likes(fb_id,callback)
 
 	friends_for(fb_id,access_token,function(users){
-		/*for(var i=0; i < users.length; i++){
-			find_band_likes(users[i],access_token,function(user, bands){
-
+		for(var i=0; i < users.length; i++){
+			find_band_likes(users[i],access_token,function(user, band_likes){
+				for(var i=0; i<band_likes.length; i++){
+					var like = band_likes[i];
+					var cached_band = fb_band_repo[like.page_id];
+					if(cached_band){
+						like.wiki_date = cached_band.wiki_date;
+					}else{
+						find_wiki_date(like,function(){
+							//now we have like.wiki_date!
+						});
+					}
+				}
 			});
-		}*/
+		}
 	});
 
 
@@ -92,22 +104,25 @@ function friends_for(fb_id,access_token,callback){
 //step 2
 function find_band_likes(obj_user,access_token,callback){ //or just: /517185072/likes
 
-	//SELECT page_id, type, created_time FROM page_fan WHERE uid=1526632 AND "MUSICIAN/BAND" LIMIT 300;
+	var query = 'SELECT page_id, type, created_time FROM page_fan WHERE uid='+obj_user.id+' AND (type = "MUSICIAN/BAND" OR type = "ARTIST") LIMIT 40;';
 
-	var req_str = 'https://graph.facebook.com/'+
-	obj_user.id+'/friends?limit=1&offset=0&access_token='+
+	var req_str = 'https://graph.facebook.com/fql?q='+
+	encodeURIComponent(query)+'&access_token='+
 	access_token;
 
 	request(req_str, function (error, response) {
 		var body = JSON.parse(response.body);
-		console.log(body);
+
 		if(error){
 			error();
 		}else{
-			//var users = body.data;
-			//return callback(users);
+			callback(obj_user,body.data);
 		}
 	});
+}
+
+function find_wiki_date(like,callback){
+
 }
 
 //step 3
