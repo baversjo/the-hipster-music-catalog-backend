@@ -138,7 +138,7 @@ function getWikiDate(array_bands, callback){
             }
     });
 }
-//hipster_score({'band':'cuba','like_date':'2002',wiki_date:'2003'});
+hipster_score({'band':'cuba','like_date': new Date(),'wiki_date': new Date()});
 
 //step 4
 function hipster_score(arr_bands){
@@ -148,7 +148,7 @@ function hipster_score(arr_bands){
 
 
     if(fbLike.getYear()<= wiki.getYear()){
-        if(fbLike.getMont() <= wiki.getMonth()){
+        if(fbLike.getMonth() <= wiki.getMonth()){
             if(fbLike.getDay() <= wiki.getDay()){
                 //increase score
 
