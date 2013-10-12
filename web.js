@@ -2,6 +2,13 @@ var express = require("express");
 var app = express();
 var request = require('request');
 var _ = require('underscore');
+var Pusher = require('pusher');
+
+var pusher = new Pusher({
+  appId: process.env.PUSHER_APP,
+  key: process.env.PUSHER_KEY,
+  secret: process.env.PUSHER_SECRET
+});
 
 var pg = require('pg');
 
@@ -10,7 +17,6 @@ var conString = process.env.DATABASE_URL || "postgres://localhost/thmc_developme
 var client;
 
 app.use(express.bodyParser());
-app.use(express.logger());
 
 /* serves main page */
 app.get("/", function(req, res) {
@@ -51,18 +57,23 @@ app.get("/howhipsteris", function(req, res) {
 	friends_for(fb_id,access_token,function(users){
 		console.log('a');
 		var outer_counter = 0;
+		var total_users = users.length;
 		var outer_done = function(){
-			if(outer_counter == users.length.length-1){
+			console.log('counts:',outer_counter,total_users-1);
+			outer_counter++;
+			if(outer_counter == total_users-1){
 				pusher_notify_ok();
-			}else{
-				outer_counter++;
 				console.log('completely done!');
 			}
+		}
+		if(!users){
+			pusher_error(fb_id,"could not fetch friends (invalid access token?)");
+			return;
 		}
 		console.log("users length:", users.length);
 		for(var i=0; i < users.length; i++){
 			console.log('b');
-			find_band_likes(users[i],access_token,function(user, band_likes){
+			find_band_likes(users[i],access_token,fb_id,function(user, band_likes){
 				console.log('c', band_likes);
 				var counter = 0;
 				var cont_user = function(fail){
@@ -81,6 +92,7 @@ app.get("/howhipsteris", function(req, res) {
 				}
 				user.band_likes = band_likes;
 				if(band_likes == null){
+					total_users -= 1;
 					outer_done();
 					return;
 				}
@@ -94,29 +106,12 @@ app.get("/howhipsteris", function(req, res) {
 						cont_user();
 					}else{
 						console.log('are you here 3 times?');
-						find_wiki_date(like,access_token,cont_user);
+						find_wiki_date(like,access_token,fb_id,cont_user);
 					}
 				}
 			});
 		}
 	});
-
-
-
-	//step three:
-	//add each band's wikipedia creation date to hash above (step three will be done per-user)
-	//input: array elements: {band: "Madeon", like_date: 1235125213}
-	//callback: array elements: {band: "Madeon", like_date: 1235125213, wiki_date: 12784122}
-
-
-
-	//step four:
-	//calculate a hipster score for a user. if wiki_date is null, ignore entry completely.
-	//input: array elements: {band: "Madeon", like_date: 1235125213, wiki_date: 12784122}
-	//direct output: a float between 0.0-100.0
-
-
-	//step five: just call the pusher api.
 	
 });
 
@@ -145,7 +140,7 @@ function friends_for(fb_id,access_token,callback){
 	request(req_str, function (error, response) {
 		var body = JSON.parse(response.body);
 		if(error){
-			pusher_error(error);
+			pusher_error(fb_id,error);
 		}else{
 			var users = body.data;
 			return callback(users);
@@ -154,7 +149,7 @@ function friends_for(fb_id,access_token,callback){
 }
 
 //step 2
-function find_band_likes(obj_user,access_token,callback){ //or just: /517185072/likes
+function find_band_likes(obj_user,access_token,original_user_id, callback){ //or just: /517185072/likes
 
 	var query = 'SELECT page_id, type, created_time FROM page_fan WHERE uid='+obj_user.id+' AND (type = "MUSICIAN/BAND" OR type = "ARTIST") LIMIT 40;';
 
@@ -166,7 +161,7 @@ function find_band_likes(obj_user,access_token,callback){ //or just: /517185072/
 		var body = JSON.parse(response.body).data;
 
 		if(error){
-			pusher_error(error);
+			pusher_error(original_user_id, error);
 			callback();
 		}else{
 			callback(obj_user,body);
@@ -174,7 +169,7 @@ function find_band_likes(obj_user,access_token,callback){ //or just: /517185072/
 	});
 }
 
-function find_wiki_date(like,access_token, callback){
+function find_wiki_date(like,access_token,original_user_id,callback){
 	var query = "select name FROM page WHERE page_id = " + like.page_id;
 
 	var req_str = 'https://graph.facebook.com/fql?q='+
@@ -184,7 +179,7 @@ function find_wiki_date(like,access_token, callback){
 	request(req_str, function (error, response) {
 		var body = JSON.parse(response.body);
 		if(error){
-			pusher_error(error);
+			pusher_error(original_user_id,error);
 			callback(true);
 		}else{
 			var name = body.data[0].name;
@@ -243,19 +238,23 @@ function hipster_score(user, original_user_id){
 	    }
 	*/
 
+
+
     client.query('SELECT id, score FROM users WHERE id = $1', [user.id], function(err, result) {
     	if(result.rows[0]){
     		//UPDATE
     		//create relationship
     		client.query('UPDATE users SET score = $1 WHERE id = $2', [user.score, user.id]);
-    		client.query('INSERT INTO friendships (user_id,friend_id) VALUES ($1,$2)', [original_user_id,user.id]); //TODO: validate uniqueness
     	}else{
 
     		client.query('INSERT INTO users (id,name,score,created_at,updated_at) VALUES ($1,$2,$3,$4,$5)',
     			[user.id, user.name, user.score, new Date(), new Date()]);
-
-
-    		client.query('INSERT INTO friendships (user_id,friend_id) VALUES ($1,$2)', [original_user_id,user.id]);
+    		
+    	}
+    	try{
+    		//client.query('INSERT INTO friendships (user_id,friend_id) VALUES ($1,$2)', [original_user_id,user.id]);
+    	}catch(e){
+    		//frendship already exists
     	}
     	
     });
@@ -263,11 +262,15 @@ function hipster_score(user, original_user_id){
 }
 
 
-function pusher_error(error){
+function pusher_error(original_user_id, error){
  //todo: call pusher!
  	console.log(error);
  	console.log("PUSHER: ERROR");
+ 	pusher.trigger(original_user_id, 'error', {error:error});
 }
-function pusher_notify_ok(){
+function pusher_notify_ok(original_user_id){
 	console.log("PUSHER: DONE");
+	setTimeout(function(){
+		pusher.trigger(original_user_id, 'done', {});
+	},1000);
 }
