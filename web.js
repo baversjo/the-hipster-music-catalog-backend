@@ -1,5 +1,7 @@
 var express = require("express");
 var app = express();
+var request = require('request');
+var _ = require('underscore');
 
 app.use(express.bodyParser());
 
@@ -21,6 +23,7 @@ app.get("/howhipsteris", function(req, res) {
 		resp += " bad request, missing param!";
 		res.status(400);
 	}
+	res.end(resp);
 
 
 
@@ -36,6 +39,16 @@ app.get("/howhipsteris", function(req, res) {
 	//callback: array elements: {band: "Madeon", like_date: 1235125213}
 	//find_band_likes(fb_id,callback)
 
+	friends_for(fb_id,access_token,function(users){
+		/*for(var i=0; i < users.length; i++){
+			find_band_likes(users[i],access_token,function(user, bands){
+
+			});
+		}*/
+	});
+
+
+
 	//step three:
 	//add each band's wikipedia creation date to hash above (step three will be done per-user)
 	//input: array elements: {band: "Madeon", like_date: 1235125213}
@@ -48,7 +61,7 @@ app.get("/howhipsteris", function(req, res) {
 
 
 	//step five: just call the pusher api.
-	res.end(resp);
+	
 });
 
 var port = process.env.PORT || 5000;
@@ -59,12 +72,40 @@ var port = process.env.PORT || 5000;
 
 //step 1
 function friends_for(fb_id,access_token,callback){
+	var req_str = 'https://graph.facebook.com/'+
+		fb_id+'/friends?limit=5000&offset=0&access_token='+
+		access_token;
 
+	request(req_str, function (error, response) {
+		var body = JSON.parse(response.body);
+		if(error){
+			error();
+		}else{
+			var users = body.data;
+			return callback(users);
+		}
+	});
 }
 
 //step 2
-function find_band_likes(fb_id,callback){
+function find_band_likes(obj_user,access_token,callback){ //or just: /517185072/likes
 
+	//SELECT page_id, type, created_time FROM page_fan WHERE uid=1526632 AND "MUSICIAN/BAND" LIMIT 300;
+
+	var req_str = 'https://graph.facebook.com/'+
+	obj_user.id+'/friends?limit=1&offset=0&access_token='+
+	access_token;
+
+	request(req_str, function (error, response) {
+		var body = JSON.parse(response.body);
+		console.log(body);
+		if(error){
+			error();
+		}else{
+			//var users = body.data;
+			//return callback(users);
+		}
+	});
 }
 
 //step 3
@@ -76,4 +117,12 @@ function get_wiki_creation_date(arr_bands,callback){
 function hipster_score(arr_bands){
 
 	return 0.0;
+}
+
+
+function error(){
+ //todo: call pusher!
+}
+function pusher_notify_ok(){
+
 }
