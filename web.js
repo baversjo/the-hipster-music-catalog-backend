@@ -54,6 +54,8 @@ app.get("/howhipsteris", function(req, res) {
 	//input: array elements: {band: "Madeon", like_date: 1235125213}
 	//callback: array elements: {band: "Madeon", like_date: 1235125213, wiki_date: 12784122}
 
+
+
 	//step four:
 	//calculate a hipster score for a user. if wiki_date is null, ignore entry completely.
 	//input: array elements: {band: "Madeon", like_date: 1235125213, wiki_date: 12784122}
@@ -109,12 +111,57 @@ function find_band_likes(obj_user,access_token,callback){ //or just: /517185072/
 }
 
 //step 3
-function get_wiki_creation_date(arr_bands,callback){
-
+function getWikiDate(array_bands, callback){
+    var request = require('request');
+    var date='';
+    request("http://en.wikipedia.org/w/api.php?action=query&prop=revisions&titles="+array_bands.band+"&rvprop=timestamp%7Cuser&rvdir=newer&rvlimit=1&format=json&callback=?", function (error, response, body) {
+        if (!error && response.statusCode == 200) {
+            var a =  body.indexOf("timestamp");
+            var date ='';
+            if(a){
+                for(var b=a+12; b<= a+31;b++)
+                    date+=body[b];
+                console.log(date);
+            }
+            bandArray={
+                'band': array_bands.band,
+                like_date: array_bands.like_date,
+                wiki_date: date
+            }
+            callback(bandArray);
+        }
+    })
 }
+//hipster_score({'band':'cuba','like_date':'2002',wiki_date:'2003'});
 
 //step 4
 function hipster_score(arr_bands){
+	var likeYear='',wikiYear='';
+    for(var i=0;i<=3;i++){
+        likeYear+=arr_bands.like_date[i];
+        wikiYear+=arr_bands.wiki_date[i];
+    }
+    var likeMonth='',wikiMonth='';
+    for(var i=5;i<=6;i++){
+        likeMonth+=arr_bands.like_date[i];
+        wikiMonth+=arr_bands.wiki_date[i];
+    }
+    var likeDay='', wikiDay='';
+    for(vari=8;i<=9;i++){
+        likeDay+=arr_bands.like_date[i];
+        wikiDay+=arr_bands.wiki_date[i];
+    }
+
+
+    if(parseInt(likeYear) <= parseInt(wikiYear)){
+        if(parseInt(likeMonth) <= parseInt(wikiMonth)){
+            if(parseInt(likeDay) <= parseInt(wikiDay)){
+                //increase score
+
+            }
+        }
+    }
+
 
 	return 0.0;
 }
