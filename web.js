@@ -48,7 +48,7 @@ app.get("/howhipsteris", function(req, res) {
             if (!error && response.statusCode == 200) {
                 var a =  body.indexOf("timestamp");
                 var date ='';
-                for(var b=a+12; b<= a+21;b++)
+                for(var b=a+12; b<= a+31;b++)
                     date+=body[b];
                 console.log(date);
                 bandArray={
@@ -60,7 +60,6 @@ app.get("/howhipsteris", function(req, res) {
             }
         })
     }
-
 
 	//step four:
 	//calculate a hipster score for a user. if wiki_date is null, ignore entry completely.
