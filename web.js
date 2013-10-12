@@ -102,17 +102,16 @@ app.get("/howhipsteris", function(req, res) {
 
 
 					if(cached_band){
+						console.log('==========> cache hit!');
 						like.wiki_date = cached_band.wiki_date;
 						cont_user();
 					}else{
-						console.log('are you here 3 times?');
 						find_wiki_date(like,access_token,fb_id,cont_user);
 					}
 				}
 			});
 		}
 	});
-	
 });
 
 
@@ -134,7 +133,7 @@ app.get("/howhipsteris", function(req, res) {
 //step 1
 function friends_for(fb_id,access_token,callback){
 	var req_str = 'https://graph.facebook.com/'+
-		fb_id+'/friends?limit=2&offset=0&access_token='+
+		fb_id+'/friends?limit=5&offset=0&access_token='+
 		access_token;
 
 	request(req_str, function (error, response) {
@@ -184,7 +183,9 @@ function find_wiki_date(like,access_token,original_user_id,callback){
 		}else{
 			var name = body.data[0].name;
 			wikipedia_creation_date_by_name(name,function(date){
+				console.log('=> new wiki date:', date, "for:", name);
 				like.wiki_date = date;
+				fb_band_repo[like.page_id] = {wiki_date: date};
 				callback();
 			});
 			
@@ -195,22 +196,26 @@ function find_wiki_date(like,access_token,original_user_id,callback){
 //step 3
 function wikipedia_creation_date_by_name(name, callback){
 //    var request = require('request');
-    var date='';
-    request("http://en.wikipedia.org/w/api.php?action=query&prop=revisions&titles="+
+	console.log("");
+	console.log("");
+    var reqStr = "http://en.wikipedia.org/w/api.php?action=query&prop=revisions&titles="+
     	encodeURIComponent(name)+
-    	"&rvprop=timestamp%7Cuser&rvdir=newer&rvlimit=1&format=json&callback=?",
+    	"&rvprop=timestamp%7Cuser&rvdir=newer&rvlimit=1&format=json";
+
+    request(reqStr,
         function (error, response, body) {
-            if (!error && response.statusCode == 200) {
-                var a =  body.indexOf("timestamp");
-                var date ='';
-                if(a){
-                    for(var b=a+12; b<= a+31;b++)
-                        date+=body[b];
-                }
-                date = new Date(date);
-                callback(date);
-            }
-    });
+        	var date;
+
+        	var data = JSON.parse(body);
+        	if(data && data.query && data.query.pages){
+	        	var page_key = Object.keys(data.query.pages)[0];
+	        	var revisions = data.query.pages[page_key].revisions;
+	        	if(revisions){
+	        		date = new Date(revisions[0].timestamp);
+	        	}
+        	}
+        	callback(date);
+    	});
 }
 
 /*
@@ -241,7 +246,7 @@ function hipster_score(user, original_user_id){
 
 
     client.query('SELECT id, score FROM users WHERE id = $1', [user.id], function(err, result) {
-    	if(result.rows[0]){
+    	if(result && result.rows[0]){
     		//UPDATE
     		//create relationship
     		client.query('UPDATE users SET score = $1 WHERE id = $2', [user.score, user.id]);
@@ -251,11 +256,11 @@ function hipster_score(user, original_user_id){
     			[user.id, user.name, user.score, new Date(), new Date()]);
     		
     	}
-    	try{
-    		//client.query('INSERT INTO friendships (user_id,friend_id) VALUES ($1,$2)', [original_user_id,user.id]);
-    	}catch(e){
-    		//frendship already exists
-    	}
+    	client.query('SELECT user_id FROM friendships WHERE user_id = $1 and friend_id = $2', [original_user_id,user.id], function(err, result) {
+    		if(!(result && result.rows[0])){
+    			client.query('INSERT INTO friendships (user_id,friend_id) VALUES ($1,$2)', [original_user_id,user.id]);
+    		}
+    	});
     	
     });
 
