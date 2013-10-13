@@ -260,7 +260,7 @@ function hipster_score(user, original_user_id){
     			[user.id, user.name, user.score, new Date(), new Date()]);
     		
     	}
-    	client.query('SELECT user_id FROM friendships WHERE user_id = $1 and friend_id = $2', [original_user_id,user.id], function(err, result) {
+    	client.query('SELECT user_id FROM friendships WHERE (user_id = $1 and friend_id = $2) or (user_id = $2 and friend_id = $1)', [original_user_id,user.id], function(err, result) {
     		if(!(result && result.rows[0])){
     			client.query('INSERT INTO friendships (user_id,friend_id) VALUES ($1,$2)', [original_user_id,user.id]);
     		}
